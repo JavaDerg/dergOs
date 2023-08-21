@@ -1,0 +1,27 @@
+[package]
+name = "kernel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bootloader_api = "0.11.4"
+
+log = "0.4.20"
+
+uart_16550 = "0.3.0"
+x86_64 = "0.14.10"
+
+spinning_top = "0.2.5"
+conquer-once = { version = "0.4.0", default-features = false }
+
+rand = { version = "0.8.5", default-features = false }
+rand_chacha = { version = "0.3.1", default-features = false }
+# blake3 = { version = "1.4.1", default-features = false } // requires libc somehow?
+
+noto-sans-mono-bitmap = "0.2.0"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
