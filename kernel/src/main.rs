@@ -25,14 +25,19 @@ fn kernel_main(BootInfo { framebuffer, .. }: &'static mut BootInfo) -> ! {
         loop {}
     };
 
-    let mut sfb = SharedFrameBuffer::new(fb);
+    let sfb = SharedFrameBuffer::new(fb);
 
-    writeln!(&sfb, "Hello world ^^").unwrap();
-    writeln!(&sfb, "New lines seem to work x3333").unwrap();
+    sfb.clear();
 
-    for i in 0.. {
-        write!(&sfb, "{i}").unwrap();
-    }
+    writeln!(&sfb, "Booting...").unwrap();
+
+    // do stuff idk
+
+    writeln!(&sfb, "Hello from dergOs!").unwrap();
+
+/*    for i in 0.. {
+        write!(&sfb, "{i} ").unwrap();
+    }*/
 
     loop {}
 }

@@ -50,6 +50,44 @@ impl SharedFrameBuffer {
     pub fn clear(&self) {
         self.0.lock().clear();
     }
+
+    pub fn draw_rgb4_block(&self, img: &[u8], width: usize, height: usize) {
+        assert_eq!(img.len(), width * height * 4);
+
+        let mut this = self.0.lock();
+        let info = this.fb.info();
+
+        if this.pos_y + height > info.height {
+            let diff = info.height - (this.pos_y - height);
+            let scroll = diff.div_ceil(VERTICAL_STRIDE);
+
+            this.scroll(scroll);
+            this.pos_y -= scroll * VERTICAL_STRIDE;
+        }
+
+        this.new_line();
+
+        let mapper = this.mapper.clone();
+
+        for y in 0..height {
+            for x in 0..width {
+                let ip = (y * width + x) * 4;
+                let ax =
+                    ((this.pos_y + y) * info.stride + this.pos_x + x) * info.bytes_per_pixel;
+
+                mapper.write(&mut this.fb.buffer_mut()[ax..], &[
+                    img[ip],
+                    img[ip + 1],
+                    img[ip + 2],
+                ])
+            }
+        }
+
+        this.pos_y += height.div_ceil(VERTICAL_STRIDE) * VERTICAL_STRIDE;
+        if this.pos_y + VERTICAL_STRIDE > info.height {
+            this.new_line();
+        }
+    }
 }
 
 impl Write for &SharedFrameBuffer {
@@ -83,12 +121,12 @@ impl Write for &SharedFrameBuffer {
 
             for y in 0..cr.height() {
                 for x in 0..cr.width() {
-                    let rx =
+                    let ax =
                         ((this.pos_y + y) * info.stride + this.pos_x + x) * info.bytes_per_pixel;
 
                     let l = cr.raster()[y][x];
 
-                    mapper.write(&mut this.fb.buffer_mut()[rx..], &[l, l, l])
+                    mapper.write(&mut this.fb.buffer_mut()[ax..], &[l, l, l])
                 }
             }
 
@@ -105,8 +143,6 @@ impl InnerFrameBuffer {
     }
 
     pub fn new_line(&mut self) {
-        trace!("new line!");
-
         self.pos_x = 0;
         self.pos_y += VERTICAL_STRIDE;
 
@@ -115,8 +151,6 @@ impl InnerFrameBuffer {
             self.pos_y -= VERTICAL_STRIDE;
             moves += 1;
         }
-        trace!("moves: {moves}");
-        trace!("final y: {}", self.pos_y);
 
         if moves != 0 {
             self.scroll(moves);
@@ -126,8 +160,8 @@ impl InnerFrameBuffer {
     pub fn scroll(&mut self, by: usize) {
         let info = self.fb.info();
 
-        let start = info.stride * by;
-        let blank_from = info.height / VERTICAL_STRIDE * info.stride;
+        let start = info.stride * by * VERTICAL_STRIDE * info.bytes_per_pixel;
+        let blank_from = (info.height - (by * VERTICAL_STRIDE)) * info.stride * info.bytes_per_pixel;
 
         if by >= blank_from {
             self.clear();
