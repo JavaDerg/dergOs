@@ -51,6 +51,40 @@ impl SharedFrameBuffer {
         self.0.lock().clear();
     }
 
+    pub fn bubble_sort(&self, size: usize) {
+        let mut this = self.0.lock();
+
+        let buf = this.fb.buffer_mut();
+
+        buf.chunks_mut(2u32.pow(size as u32) as usize).for_each(|chk| Self::bubble_sort_range(chk));
+
+    }
+
+    fn bubble_sort_range(buf: &mut [u8]) {
+        fn fast_int(buf: &[u8]) -> u32 {
+            (buf[0] as u32) << 24
+            | (buf[1] as u32) << 16
+            | (buf[2] as u32) << 8
+            | buf[3] as u32
+        }
+
+        let mut sorted = false;
+        while !sorted {
+            sorted = true;
+
+            for mut i in 0..buf.len() / 4 - 1 {
+                if fast_int(&buf[i * 4..]) > fast_int(&buf[i * 4 + 4..]) {
+                    i *= 4;
+                    buf.swap(i + 0, i + 4 + 0);
+                    buf.swap(i + 1, i + 4 + 1);
+                    buf.swap(i + 2, i + 4 + 2);
+                    buf.swap(i + 3, i + 4 + 3);
+                    sorted = false;
+                }
+            }
+        }
+    }
+
     pub fn draw_rgb4_block(&self, img: &[u8], width: usize, height: usize) {
         assert_eq!(img.len(), width * height * 4);
 

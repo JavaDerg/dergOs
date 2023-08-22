@@ -1,19 +1,12 @@
-use crate::fb::SharedFrameBuffer;
 use log::{LevelFilter, Log, Metadata, Record};
-use crate::serial::{COM1, SharedSerialPort};
 use core::fmt::Write;
-use conquer_once::spin::Lazy;
+use crate::kio::KernelIo;
 
-pub struct KernelLogger {
-    _priv: (),
-}
-
+pub struct KernelLogger(());
 
 impl KernelLogger {
     pub fn init() {
-        log::set_logger(&Self {
-            _priv: (),
-        }).unwrap();
+        log::set_logger(&Self(())).unwrap();
         log::set_max_level(LevelFilter::Trace);
     }
 }
@@ -24,7 +17,7 @@ impl Log for KernelLogger {
     }
 
     fn log(&self, record: &Record) {
-        writeln!(&*COM1, "[{}] {}", record.level(), record.args()).unwrap();
+        writeln!(KernelIo, "[{}] {}", record.level(), record.args()).unwrap();
     }
 
     fn flush(&self) {}
