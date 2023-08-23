@@ -8,6 +8,7 @@ fn main() {
 
     let mut cmd = std::process::Command::new("qemu-system-x86_64");
     cmd.arg("-enable-kvm");
+    cmd.arg("-m").arg("2G");
 
     if uefi {
         cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
