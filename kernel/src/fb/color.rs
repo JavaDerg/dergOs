@@ -1,4 +1,5 @@
 use bootloader_api::info::PixelFormat;
+use core::ptr::write_volatile;
 
 type Mapper = fn(&mut [u8], &[u8; 3]);
 

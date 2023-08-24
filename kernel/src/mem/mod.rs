@@ -1,3 +1,4 @@
+use crate::mem::kfalloc::KernelFrameAllocator;
 use bootloader_api::info::MemoryRegions;
 use spinning_top::Spinlock;
 use x86_64::registers::control::Cr3;
@@ -13,8 +14,7 @@ pub struct MemoryManager {
 }
 
 struct InnerMemoryManager {
-    regions: &'static mut MemoryRegions,
-    // mem_map: Option<MemoryMap>,
+    regions: &'static MemoryRegions,
     mapper: OffsetPageTable<'static>,
     kernel_space: u16,
 }
@@ -22,22 +22,25 @@ struct InnerMemoryManager {
 impl MemoryManager {
     pub unsafe fn new(
         phys_offset: VirtAddr,
-        regions: &'static mut MemoryRegions,
+        regions: &'static MemoryRegions,
     ) -> &'static MemoryManager {
         let cr3 = Cr3::read().0.start_address().as_u64();
         // SAFETY: the caller of current function has to guarantee phys_offset is correct
         let level4 = unsafe { &mut *((phys_offset.as_u64() + cr3) as *mut PageTable) };
 
-        let (ke_idx, ke) = level4
+        let ke_idx = level4
             .iter_mut()
             .enumerate()
             .find(|(_, e)| e.is_unused())
-            .iter()
-            .next()
+            .map(|(ke_idx, _)| ke_idx)
             .expect("the level 4 page table can not be filled at this point");
 
         // SAFETY: the caller of current function has to guarantee phys_offset is correct
         let mapper = unsafe { OffsetPageTable::new(level4, phys_offset) };
+
+        // SAFETY: First time we are touching these regions, therefore we can initialize them
+        let mut allocator = unsafe { KernelFrameAllocator::new(phys_offset, regions) };
+        unsafe { allocator.init() };
 
         let inner = InnerMemoryManager {
             regions,

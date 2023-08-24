@@ -32,7 +32,11 @@ impl SharedFrameBuffer {
         if fb.info().width != fb.info().stride {
             // I have to indicate this failure somehow lol
             fb.buffer_mut().fill(0x80);
-            error!("width ({}) != stride ({})", fb.info().width, fb.info().stride);
+            error!(
+                "width ({}) != stride ({})",
+                fb.info().width,
+                fb.info().stride
+            );
 
             unimplemented!("this is a message of regret")
         }
@@ -49,40 +53,6 @@ impl SharedFrameBuffer {
 
     pub fn clear(&self) {
         self.0.lock().clear();
-    }
-
-    pub fn bubble_sort(&self, size: usize) {
-        let mut this = self.0.lock();
-
-        let buf = this.fb.buffer_mut();
-
-        buf.chunks_mut(2u32.pow(size as u32) as usize).for_each(|chk| Self::bubble_sort_range(chk));
-
-    }
-
-    fn bubble_sort_range(buf: &mut [u8]) {
-        fn fast_int(buf: &[u8]) -> u32 {
-            (buf[0] as u32) << 24
-            | (buf[1] as u32) << 16
-            | (buf[2] as u32) << 8
-            | buf[3] as u32
-        }
-
-        let mut sorted = false;
-        while !sorted {
-            sorted = true;
-
-            for mut i in 0..buf.len() / 4 - 1 {
-                if fast_int(&buf[i * 4..]) > fast_int(&buf[i * 4 + 4..]) {
-                    i *= 4;
-                    buf.swap(i + 0, i + 4 + 0);
-                    buf.swap(i + 1, i + 4 + 1);
-                    buf.swap(i + 2, i + 4 + 2);
-                    buf.swap(i + 3, i + 4 + 3);
-                    sorted = false;
-                }
-            }
-        }
     }
 
     pub fn draw_rgb4_block(&self, img: &[u8], width: usize, height: usize) {
@@ -106,14 +76,12 @@ impl SharedFrameBuffer {
         for y in 0..height {
             for x in 0..width {
                 let ip = (y * width + x) * 4;
-                let ax =
-                    ((this.pos_y + y) * info.stride + this.pos_x + x) * info.bytes_per_pixel;
+                let ax = ((this.pos_y + y) * info.stride + this.pos_x + x) * info.bytes_per_pixel;
 
-                mapper.write(&mut this.fb.buffer_mut()[ax..], &[
-                    img[ip],
-                    img[ip + 1],
-                    img[ip + 2],
-                ])
+                mapper.write(
+                    &mut this.fb.buffer_mut()[ax..],
+                    &[img[ip], img[ip + 1], img[ip + 2]],
+                )
             }
         }
 
@@ -134,11 +102,11 @@ impl Write for &SharedFrameBuffer {
                 '\n' => {
                     this.new_line();
                     continue;
-                },
+                }
                 '\r' => {
                     this.pos_x = 0;
                     continue;
-                },
+                }
                 _ => (),
             }
 
@@ -195,7 +163,8 @@ impl InnerFrameBuffer {
         let info = self.fb.info();
 
         let start = info.stride * by * VERTICAL_STRIDE * info.bytes_per_pixel;
-        let blank_from = (info.height - (by * VERTICAL_STRIDE)) * info.stride * info.bytes_per_pixel;
+        let blank_from =
+            (info.height - (by * VERTICAL_STRIDE)) * info.stride * info.bytes_per_pixel;
 
         if by >= blank_from {
             self.clear();

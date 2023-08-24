@@ -25,7 +25,6 @@ use core::ptr::slice_from_raw_parts;
 use mem::kalloc::KernelOomHandler;
 use spinning_top::RawSpinlock;
 use talc::{Talc, Talck};
-use x86_64::instructions::hlt;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::page_table::PageTableEntry;
 use x86_64::VirtAddr;
@@ -38,7 +37,7 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     () => { writeln!(crate::kio::KernelIo).unwrap() };
-    ($($arg:tt)*) => ( writeln!(crate::kio::KernelIo, $($arg)*).unwrap() );
+    ($($arg:tt)*) => ( core::writeln!(crate::kio::KernelIo, $($arg)*).unwrap() );
 }
 
 #[global_allocator]
@@ -76,8 +75,6 @@ fn kernel_main(
         println!("{:?}", reg);
     }
 
-    hlt_loop();
-
     // SAFETY: We trust that the information provided by BootInfo are correct.
     //         By moving them to the memory manager we prevent further modifications.
     let mem_mng = unsafe {
@@ -92,11 +89,13 @@ fn kernel_main(
     };
 
     println!("Hello from dergOs!");
-    FRAME_BUFFER.try_get().unwrap().draw_rgb4_block(
-        include_bytes!("../../../../../typea java.data"),
-        256,
-        256,
-    );
+    /*
+        FRAME_BUFFER.try_get().unwrap().draw_rgb4_block(
+            include_bytes!("../../../../../typea java.data"),
+            256,
+            256,
+        );
+    */
     println!();
 
     let (lv4pt, _) = Cr3::read();
@@ -123,10 +122,7 @@ pub fn hlt_loop() -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     // we don't want to double fault, no unwrap here
-    let _ = writeln!(
-        &*COM1,
-        "\n------------------------------------\nFATAL ERROR\n{info}"
-    );
+    let _ = println!("\n------------------------------------\nFATAL ERROR\n{info}");
 
     hlt_loop()
 }
