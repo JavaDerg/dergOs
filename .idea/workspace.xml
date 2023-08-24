@@ -15,8 +15,6 @@
     <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="I have to implement interrupts">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/list.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/list.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -124,6 +122,9 @@
       <workItem from="1692797895112" duration="5000" />
       <workItem from="1692798030251" duration="3619000" />
       <workItem from="1692820942846" duration="24791000" />
+      <workItem from="1692886085683" duration="49000" />
+      <workItem from="1692899721518" duration="4000" />
+      <workItem from="1692899741690" duration="859000" />
     </task>
     <task id="LOCAL-00001" summary="I have to implement interrupts">
       <option name="closed" value="true" />

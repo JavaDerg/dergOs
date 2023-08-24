@@ -23,12 +23,11 @@ use core::arch::asm;
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use core::ptr::{null, slice_from_raw_parts};
-use log::trace;
+use log::{error, trace};
 use mem::kalloc::KernelOomHandler;
 use spinning_top::RawSpinlock;
 use talc::{Talc, Talck};
 use x86_64::registers::control::Cr3;
-use x86_64::structures::idt::InterruptStackFrameValue;
 use x86_64::structures::paging::page_table::PageTableEntry;
 use x86_64::VirtAddr;
 
@@ -70,9 +69,7 @@ fn entry(info: &'static mut BootInfo) -> ! {
             stack_end = in(reg) &mut STACK_END,
             km = sym kernel_main,
             options(noreturn)
-        );
-
-        unreachable!()
+        )
     }
 }
 
@@ -144,10 +141,11 @@ pub fn hlt_loop() -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    stacktrace();
-
     // we don't want to double fault, no unwrap here
-    let _ = println!("\n------------------------------------\nFATAL ERROR\n{info}");
+    println!("\n------------------------------------");
+    let _ = println!("FATAL ERROR\n{info}");
+    println!("------------------------------------");
+    stacktrace();
 
     hlt_loop()
 }
@@ -169,6 +167,8 @@ fn stacktrace() {
     }
 
     trace!("Stack trace:");
+    error!("lmao did you actually think I would implement this rn? (i tried ;W;)");
+    return;
 
     while unsafe { (*cur).rbp } != null() && unsafe { (*cur).rbp } as u64 != unsafe { STACK_END } {
         trace!(
