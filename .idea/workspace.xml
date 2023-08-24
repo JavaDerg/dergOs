@@ -12,15 +12,11 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/list.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/primitive.rs" afterDir="false" />
+    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="I have to implement interrupts">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/fb/color.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/fb/color.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/fb/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/fb/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/list.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/list.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/mem/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/mod.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -127,8 +123,17 @@
       <workItem from="1692720916626" duration="20587000" />
       <workItem from="1692797895112" duration="5000" />
       <workItem from="1692798030251" duration="3619000" />
-      <workItem from="1692820942846" duration="11509000" />
+      <workItem from="1692820942846" duration="24791000" />
     </task>
+    <task id="LOCAL-00001" summary="I have to implement interrupts">
+      <option name="closed" value="true" />
+      <created>1692837445323</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1692837445323</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -144,6 +149,10 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="I have to implement interrupts" />
+    <option name="LAST_COMMIT_MESSAGE" value="I have to implement interrupts" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

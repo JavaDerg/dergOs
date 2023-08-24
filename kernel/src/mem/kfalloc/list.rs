@@ -23,7 +23,7 @@ impl PageNode {
 impl NodeTraverser {
     /// # SAFETY
     /// Provided linked list must be in a valid state
-    pub unsafe fn new(start: PageNode) -> Self {
+    pub fn new(start: PageNode) -> Self {
         Self { start: Some(start) }
     }
 }
@@ -32,6 +32,7 @@ impl Iterator for NodeTraverser {
     type Item = PageNode;
 
     fn next(&mut self) -> Option<Self::Item> {
+        return self.start.take();
         let cur = self.start.take()?;
 
         if !cur.next.is_null() {

@@ -3,6 +3,7 @@ mod primitive;
 
 use crate::mem::kfalloc::list::{NodeTraverser, PageNode};
 use bootloader_api::info::{MemoryRegion, MemoryRegionKind, MemoryRegions, Optional};
+use core::ops::Not;
 use core::ptr::{null, null_mut};
 use log::{info, trace, warn};
 use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame};
@@ -13,6 +14,11 @@ pub struct KernelFrameAllocator {
     map: &'static MemoryRegions,
 
     start: *mut PageNode,
+}
+
+struct RegionCombiningIter<I> {
+    inner: I,
+    current: Option<MemoryRegion>,
 }
 
 impl KernelFrameAllocator {
@@ -36,33 +42,27 @@ impl KernelFrameAllocator {
         let usable = self
             .map
             .iter()
-            .filter(|mr| mr.kind == MemoryRegionKind::Usable);
+            .filter(|mr| mr.kind == MemoryRegionKind::Usable)
+            .cloned();
 
-        let mut last = null_mut::<PageNode>();
-
-        let mut current = MemoryRegion {
-            start: 0,
-            end: 0,
-            kind: MemoryRegionKind::Usable,
+        let combiner = RegionCombiningIter {
+            inner: usable,
+            current: None,
         };
 
-        let mut total_c = 0;
-        let mut total_s = 0;
+        let mut start = null_mut::<PageNode>();
+        let mut last = null_mut::<PageNode>();
 
-        for mr in usable {
-            if current.end == mr.start {
-                current.end = mr.end;
-                continue;
-            }
-
+        for mr in combiner {
             // SAFETY: the provided memory region are assumed to be unused and correct
-            let node = unsafe { self.init_region(&current) };
+            let node = unsafe { self.init_region(&mr) };
             if node.is_null() {
-                current = *mr;
-                continue;
+                panic!("Invalid memory region passed to initializer");
             }
 
-            current = *mr;
+            if start.is_null() {
+                start = node;
+            }
 
             if !last.is_null() {
                 // SAFETY: We performed a null check, therefor the pointer is be valid
@@ -71,38 +71,30 @@ impl KernelFrameAllocator {
                     (*last).next = node;
                 }
             }
-            last = node;
 
-            total_c += 1;
-            total_s += (*node).count * 4096;
+            last = node;
         }
 
         // Finalize the current memory region
-        let starting_node = unsafe { self.init_region(&current) };
-        if !starting_node.is_null() && !last.is_null() {
-            // SAFETY: We performed a null check, therefor the pointer is be valid
-            //         and has been written too before by `init_region`.
-            unsafe {
-                (*last).next = starting_node;
-            }
-        }
+        self.start = start;
 
-        self.start = starting_node;
-
-        // just some stats
-        total_c += 1;
-        total_s += (*starting_node).count * 4096;
-
-        info!("Found {total_c} allocatable regions");
-        info!("      {} kB of usable memory", total_s / 1024);
-
-        for (i, node) in NodeTraverser::new(starting_node.read()).enumerate() {
+        let mut node = self.start.read();
+        info!(
+            "(0x{:X}) {} kB - 0x{:X}",
+            node.this as usize,
+            node.count * 4096 / 1024,
+            node.next as usize,
+        );
+        while let Some(next) = node.next() {
+            node = next;
             info!(
-                "{i}. (0x{:X}) {} kB",
+                "(0x{:X}) {} kB",
                 node.this as usize,
                 node.count * 4096 / 1024
             );
         }
+
+        info!("end");
     }
 
     /// Trims and initializes a memory region and returns a pointer to the respective node.
@@ -145,6 +137,40 @@ impl KernelFrameAllocator {
         }
 
         node_ptr
+    }
+}
+
+impl<I> Iterator for RegionCombiningIter<I>
+where
+    I: Iterator<Item = MemoryRegion>,
+{
+    type Item = MemoryRegion;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        const PAGE_MASK: u64 = !(4096 - 1);
+
+        if self.current.is_none() {
+            self.current = Some(self.inner.next()?);
+        }
+
+        loop {
+            let Some(next) = self.inner.next() else {
+                return self.current.take();
+            };
+
+            let mut current = self.current.take().unwrap();
+            if current.end != next.start {
+                if (current.end & PAGE_MASK) - (current.start & PAGE_MASK) == 0 {
+                    warn!("Useless memory region ignored");
+                    return self.next();
+                }
+
+                return Some(current);
+            }
+
+            current.end = next.end;
+            self.current = Some(current);
+        }
     }
 }
 

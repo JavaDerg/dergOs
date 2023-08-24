@@ -19,13 +19,16 @@ use bootloader_api::config::Mapping;
 use bootloader_api::info::Optional;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use conquer_once::spin::OnceCell;
+use core::arch::asm;
 use core::fmt::Write;
 use core::panic::PanicInfo;
-use core::ptr::slice_from_raw_parts;
+use core::ptr::{null, slice_from_raw_parts};
+use log::trace;
 use mem::kalloc::KernelOomHandler;
 use spinning_top::RawSpinlock;
 use talc::{Talc, Talck};
 use x86_64::registers::control::Cr3;
+use x86_64::structures::idt::InterruptStackFrameValue;
 use x86_64::structures::paging::page_table::PageTableEntry;
 use x86_64::VirtAddr;
 
@@ -51,7 +54,27 @@ static BOOTLOADER_CONFIG: BootloaderConfig = {
     config
 };
 
-entry_point!(kernel_main, config = &BOOTLOADER_CONFIG);
+entry_point!(entry, config = &BOOTLOADER_CONFIG);
+
+static mut STACK_END: u64 = 0;
+
+fn entry(info: &'static mut BootInfo) -> ! {
+    // im just praying that this works
+    unsafe {
+        asm!(
+            "mov QWORD PTR [{stack_end}], rsp",
+            "push rax",
+            "xor rbp, rbp",
+            "call {km}",
+            "ud2",
+            stack_end = in(reg) &mut STACK_END,
+            km = sym kernel_main,
+            options(noreturn)
+        );
+
+        unreachable!()
+    }
+}
 
 fn kernel_main(
     BootInfo {
@@ -121,8 +144,38 @@ pub fn hlt_loop() -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    stacktrace();
+
     // we don't want to double fault, no unwrap here
     let _ = println!("\n------------------------------------\nFATAL ERROR\n{info}");
 
     hlt_loop()
+}
+
+#[repr(C)]
+struct StackFrame {
+    rbp: *const StackFrame,
+    rip: u64,
+}
+
+// This is just a big bunch of bs
+fn stacktrace() {
+    let mut cur: *const StackFrame;
+    unsafe {
+        asm!(
+            "mov {}, rsp",
+            out(reg) cur,
+        );
+    }
+
+    trace!("Stack trace:");
+
+    while unsafe { (*cur).rbp } != null() && unsafe { (*cur).rbp } as u64 != unsafe { STACK_END } {
+        trace!(
+            "    0x{:X} - 0x{:X}",
+            unsafe { (*cur).rip },
+            unsafe { (*cur).rbp } as u64
+        );
+        cur = unsafe { (*cur).rbp };
+    }
 }
