@@ -10,24 +10,27 @@ mod logging;
 mod mem;
 mod rng;
 mod serial;
+mod stacktrace;
 
 use crate::fb::SharedFrameBuffer;
 use crate::logging::KernelLogger;
 use crate::mem::MemoryManager;
 use crate::serial::COM1;
+use crate::stacktrace::dump_stack;
 use bootloader_api::config::Mapping;
 use bootloader_api::info::Optional;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use conquer_once::spin::OnceCell;
-use core::arch::asm;
+use core::arch::{asm, global_asm};
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use core::ptr::{null, slice_from_raw_parts};
-use log::{error, trace};
+use log::{error, info, trace};
 use mem::kalloc::KernelOomHandler;
 use spinning_top::RawSpinlock;
 use talc::{Talc, Talck};
 use x86_64::registers::control::Cr3;
+use x86_64::registers::read_rip;
 use x86_64::structures::paging::page_table::PageTableEntry;
 use x86_64::VirtAddr;
 
@@ -91,10 +94,6 @@ fn kernel_main(
 
     println!("Starting...");
 
-    for reg in memory_regions.iter() {
-        println!("{:?}", reg);
-    }
-
     // SAFETY: We trust that the information provided by BootInfo are correct.
     //         By moving them to the memory manager we prevent further modifications.
     let mem_mng = unsafe {
@@ -145,37 +144,10 @@ fn panic(info: &PanicInfo) -> ! {
     println!("\n------------------------------------");
     let _ = println!("FATAL ERROR\n{info}");
     println!("------------------------------------");
-    stacktrace();
+
+    unsafe {
+        dump_stack();
+    }
 
     hlt_loop()
-}
-
-#[repr(C)]
-struct StackFrame {
-    rbp: *const StackFrame,
-    rip: u64,
-}
-
-// This is just a big bunch of bs
-fn stacktrace() {
-    let mut cur: *const StackFrame;
-    unsafe {
-        asm!(
-            "mov {}, rsp",
-            out(reg) cur,
-        );
-    }
-
-    trace!("Stack trace:");
-    error!("lmao did you actually think I would implement this rn? (i tried ;W;)");
-    return;
-
-    while unsafe { (*cur).rbp } != null() && unsafe { (*cur).rbp } as u64 != unsafe { STACK_END } {
-        trace!(
-            "    0x{:X} - 0x{:X}",
-            unsafe { (*cur).rip },
-            unsafe { (*cur).rbp } as u64
-        );
-        cur = unsafe { (*cur).rbp };
-    }
 }
