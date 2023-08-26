@@ -1,3 +1,4 @@
+#![feature(abi_x86_interrupt)]
 #![no_std]
 #![no_main]
 
@@ -7,6 +8,7 @@ mod fault;
 mod fb;
 mod interrupts;
 mod kio;
+mod kpanic;
 mod logging;
 mod mem;
 mod rng;
@@ -14,6 +16,7 @@ mod serial;
 mod stacktrace;
 
 use crate::fb::SharedFrameBuffer;
+use crate::interrupts::init_idt;
 use crate::logging::KernelLogger;
 use crate::mem::MemoryManager;
 use crate::serial::COM1;
@@ -26,9 +29,11 @@ use core::arch::asm;
 use core::fmt::Write;
 use core::panic::PanicInfo;
 use core::ptr::slice_from_raw_parts;
+use log::info;
 use mem::kalloc::KernelOomHandler;
 use spinning_top::RawSpinlock;
 use talc::{Talc, Talck};
+use x86_64::instructions::interrupts::int3;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::page_table::PageTableEntry;
 use x86_64::VirtAddr;
@@ -83,7 +88,6 @@ fn kernel_main(
         ..
     }: &'static mut BootInfo,
 ) -> ! {
-    writeln!(&*COM1, "Hello from dergOs!").unwrap();
     KernelLogger::init();
 
     if let Optional::Some(fb) = framebuffer {
@@ -91,7 +95,17 @@ fn kernel_main(
     };
     FRAME_BUFFER.try_get().unwrap().clear();
 
-    println!("Starting...");
+    init_idt();
+
+    println!();
+    FRAME_BUFFER.try_get().unwrap().draw_rgb3_block(
+        include_bytes!("res/logo.data"),
+        128,
+        128,
+        true,
+    );
+
+    println!("Starting dergOs...");
 
     // SAFETY: We trust that the information provided by BootInfo are correct.
     //         By moving them to the memory manager we prevent further modifications.
@@ -105,16 +119,6 @@ fn kernel_main(
             memory_regions,
         )
     };
-
-    println!("Hello from dergOs!");
-    /*
-        FRAME_BUFFER.try_get().unwrap().draw_rgb4_block(
-            include_bytes!("../../../../../typea java.data"),
-            256,
-            256,
-        );
-    */
-    println!();
 
     let (lv4pt, _) = Cr3::read();
 
@@ -135,18 +139,4 @@ pub fn hlt_loop() -> ! {
     loop {
         x86_64::instructions::hlt();
     }
-}
-
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    // we don't want to double fault, no unwrap here
-    println!("\n------------------------------------");
-    let _ = println!("FATAL ERROR\n{info}");
-    println!("------------------------------------");
-
-    unsafe {
-        dump_stack();
-    }
-
-    hlt_loop()
 }

@@ -1,5 +1,5 @@
 use bootloader_api::info::PixelFormat;
-
+use core::ptr::read_volatile;
 
 type Mapper = fn(&mut [u8], &[u8; 3]);
 
@@ -23,6 +23,9 @@ impl ColorMapper {
 
     pub fn write(&self, dst: &mut [u8], rgb: &[u8; 3]) {
         (self.mapper)(dst, rgb);
+
+        // ensure that data will be actually written
+        let _ = unsafe { read_volatile(dst.as_ptr()) };
     }
 }
 

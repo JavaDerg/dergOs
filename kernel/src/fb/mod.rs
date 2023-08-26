@@ -3,7 +3,7 @@ mod color;
 use crate::fb::color::ColorMapper;
 use bootloader_api::info::FrameBuffer;
 use core::fmt::Write;
-use log::{error};
+use log::error;
 use noto_sans_mono_bitmap::{get_raster, FontWeight, RasterHeight};
 use spinning_top::Spinlock;
 
@@ -51,15 +51,50 @@ impl SharedFrameBuffer {
         }))
     }
 
-    pub fn clear(&self) {
-        self.0.lock().clear();
+    pub fn reset(&self) {
+        let mut this = self.0.lock();
+
+        this.pos_x = 0;
+        this.pos_y = 0;
     }
 
-    pub fn draw_rgb4_block(&self, img: &[u8], width: usize, height: usize) {
-        assert_eq!(img.len(), width * height * 4);
+    pub fn clear(&self) {
+        self.clear_color([0x4c, 0x00, 0x99]);
+        // self.0.lock().clear();
+    }
+
+    pub fn clear_color(&self, color: [u8; 3]) {
+        let mut this = self.0.lock();
+        let info = this.fb.info();
+
+        let mapper = this.mapper.clone();
+
+        let mut buf = this.fb.buffer_mut();
+
+        for y in 0..info.height {
+            for x in 0..info.width {
+                mapper.write(
+                    &mut buf[(y * info.width + x) * info.bytes_per_pixel..],
+                    &color,
+                );
+            }
+        }
+    }
+
+    fn draw_rgb_block(&self, img: &[u8], width: usize, height: usize, stride: usize, center: bool) {
+        assert!(stride >= 3);
+        assert_eq!(img.len(), width * height * stride);
 
         let mut this = self.0.lock();
         let info = this.fb.info();
+
+        if center {
+            if this.pos_x != 0 {
+                this.new_line();
+            }
+
+            this.pos_x = info.width / 2 - width / 2;
+        }
 
         if this.pos_y + height > info.height {
             let diff = info.height - (this.pos_y - height);
@@ -69,13 +104,11 @@ impl SharedFrameBuffer {
             this.pos_y -= scroll * VERTICAL_STRIDE;
         }
 
-        this.new_line();
-
         let mapper = this.mapper.clone();
 
         for y in 0..height {
             for x in 0..width {
-                let ip = (y * width + x) * 4;
+                let ip = (y * width + x) * stride;
                 let ax = ((this.pos_y + y) * info.stride + this.pos_x + x) * info.bytes_per_pixel;
 
                 mapper.write(
@@ -86,9 +119,15 @@ impl SharedFrameBuffer {
         }
 
         this.pos_y += height.div_ceil(VERTICAL_STRIDE) * VERTICAL_STRIDE;
-        if this.pos_y + VERTICAL_STRIDE > info.height {
-            this.new_line();
-        }
+        this.new_line();
+    }
+
+    pub fn draw_rgb3_block(&self, img: &[u8], width: usize, height: usize, center: bool) {
+        self.draw_rgb_block(img, width, height, 3, center);
+    }
+
+    pub fn draw_rgb4_block(&self, img: &[u8], width: usize, height: usize, center: bool) {
+        self.draw_rgb_block(img, width, height, 4, center);
     }
 }
 
@@ -128,6 +167,7 @@ impl Write for &SharedFrameBuffer {
 
                     let l = cr.raster()[y][x];
 
+                    if l > 0 {}
                     mapper.write(&mut this.fb.buffer_mut()[ax..], &[l, l, l])
                 }
             }
