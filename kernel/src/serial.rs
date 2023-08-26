@@ -1,8 +1,8 @@
-use core::fmt::{Arguments, Write};
+use core::fmt::{Write};
 use conquer_once::spin::Lazy;
 use spinning_top::Spinlock;
 use uart_16550::SerialPort;
-use crate::panic;
+
 
 // referencing https://wiki.osdev.org/Serial_Ports
 

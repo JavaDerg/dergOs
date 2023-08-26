@@ -1,5 +1,5 @@
 use core::alloc::Layout;
-use talc::{OomHandler, Span, Talc};
+use talc::{OomHandler, Talc};
 
 pub struct KernelOomHandler {}
 

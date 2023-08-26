@@ -42,7 +42,7 @@ impl MemoryManager {
         let mut allocator = unsafe { KernelFrameAllocator::new(phys_offset, regions) };
         unsafe { allocator.init() };
 
-        let inner = InnerMemoryManager {
+        let _inner = InnerMemoryManager {
             regions,
             mapper,
             kernel_space: ke_idx as u16,

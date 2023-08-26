@@ -3,7 +3,7 @@ mod color;
 use crate::fb::color::ColorMapper;
 use bootloader_api::info::FrameBuffer;
 use core::fmt::Write;
-use log::{error, info, trace};
+use log::{error};
 use noto_sans_mono_bitmap::{get_raster, FontWeight, RasterHeight};
 use spinning_top::Spinlock;
 

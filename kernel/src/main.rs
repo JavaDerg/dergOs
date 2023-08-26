@@ -59,7 +59,7 @@ entry_point!(entry, config = &BOOTLOADER_CONFIG);
 
 static mut STACK_END: u64 = 0;
 
-fn entry(info: &'static mut BootInfo) -> ! {
+fn entry(_info: &'static mut BootInfo) -> ! {
     // im just praying that this works
     unsafe {
         asm!(
@@ -95,7 +95,7 @@ fn kernel_main(
 
     // SAFETY: We trust that the information provided by BootInfo are correct.
     //         By moving them to the memory manager we prevent further modifications.
-    let mem_mng = unsafe {
+    let _mem_mng = unsafe {
         MemoryManager::new(
             VirtAddr::new(
                 physical_memory_offset

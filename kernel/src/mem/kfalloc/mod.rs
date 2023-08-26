@@ -1,13 +1,13 @@
 mod list;
 mod primitive;
 
-use crate::mem::kfalloc::list::{NodeTraverser, PageNode};
-use bootloader_api::info::{MemoryRegion, MemoryRegionKind, MemoryRegions, Optional};
-use core::ops::Not;
-use core::ptr::{null, null_mut};
+use crate::mem::kfalloc::list::{PageNode};
+use bootloader_api::info::{MemoryRegion, MemoryRegionKind, MemoryRegions};
+
+use core::ptr::{null_mut};
 use log::{info, trace, warn};
-use volatile::VolatilePtr;
-use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame};
+
+use x86_64::structures::paging::{FrameAllocator, PageSize, PhysFrame};
 use x86_64::VirtAddr;
 
 pub struct KernelFrameAllocator {

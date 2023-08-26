@@ -1,7 +1,7 @@
-use crate::kio::KernelIo;
-use crate::{print, STACK_END};
+
+use crate::{STACK_END};
 use core::arch::asm;
-use core::fmt::Write;
+
 use core::ptr::null;
 use log::{info, trace};
 
