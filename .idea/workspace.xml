@@ -13,10 +13,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="stack trace: the big giving up for now">
-      <change afterPath="$PROJECT_DIR$/kernel/src/stacktrace.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.cargo/config.toml" beforeDir="false" afterPath="$PROJECT_DIR$/.cargo/config.toml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/kernel/src/interrupts.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -131,6 +131,8 @@
       <workItem from="1692899721518" duration="4000" />
       <workItem from="1692899741690" duration="8822000" />
       <workItem from="1692909426403" duration="5048000" />
+      <workItem from="1692963108594" duration="57000" />
+      <workItem from="1692963175727" duration="8064000" />
     </task>
     <task id="LOCAL-00001" summary="I have to implement interrupts">
       <option name="closed" value="true" />

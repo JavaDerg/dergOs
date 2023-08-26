@@ -5,6 +5,7 @@ extern crate alloc;
 
 mod fault;
 mod fb;
+mod interrupts;
 mod kio;
 mod logging;
 mod mem;
@@ -21,16 +22,14 @@ use bootloader_api::config::Mapping;
 use bootloader_api::info::Optional;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use conquer_once::spin::OnceCell;
-use core::arch::{asm, global_asm};
+use core::arch::asm;
 use core::fmt::Write;
 use core::panic::PanicInfo;
-use core::ptr::{null, slice_from_raw_parts};
-use log::{error, info, trace};
+use core::ptr::slice_from_raw_parts;
 use mem::kalloc::KernelOomHandler;
 use spinning_top::RawSpinlock;
 use talc::{Talc, Talck};
 use x86_64::registers::control::Cr3;
-use x86_64::registers::read_rip;
 use x86_64::structures::paging::page_table::PageTableEntry;
 use x86_64::VirtAddr;
 
