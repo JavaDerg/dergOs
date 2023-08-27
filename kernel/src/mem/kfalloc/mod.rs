@@ -2,9 +2,12 @@ mod lla;
 
 use crate::mem::kfalloc::lla::{AlignedNodePage, NodeTraverser, PageNode};
 use bootloader_api::info::{MemoryRegion, MemoryRegionKind, MemoryRegions};
+use core::ops::Range;
 
 use core::ptr::NonNull;
 use log::{info, trace, warn};
+use spinning_top::lock_api::RawMutex;
+use spinning_top::RawSpinlock;
 
 use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame};
 use x86_64::VirtAddr;
@@ -14,7 +17,7 @@ pub struct KernelFrameAllocator {
     map: &'static MemoryRegions,
     sync: NonNull<SyncPage>,
 
-    start: NonNull<AlignedNodePage>,
+    start: Option<NonNull<AlignedNodePage>>,
 }
 
 struct PageReservingIter<'a> {
@@ -23,7 +26,9 @@ struct PageReservingIter<'a> {
 }
 
 #[repr(align(4096))]
-struct SyncPage {}
+struct SyncPage {
+    ll_lock: RawSpinlock,
+}
 
 struct RegionCombiningIter<I> {
     inner: I,
@@ -46,7 +51,7 @@ impl KernelFrameAllocator {
             phys_offset,
             map,
             sync: NonNull::dangling(),
-            start: NonNull::dangling(),
+            start: None,
         }
     }
 
@@ -90,12 +95,12 @@ impl KernelFrameAllocator {
         }
 
         // Finalize the current memory region
-        self.start = start.expect("no suitable memory regions found");
+        self.start = Some(start.expect("no suitable memory regions found"));
 
         // FIXME: start does not get updated properly??
         self.sync = NonNull::new(self.init_sync_page() as *mut _).unwrap();
 
-        for node in NodeTraverser::new(self.start.as_ref().0) {
+        for node in NodeTraverser::new(self.start.unwrap().as_ref().0) {
             info!(
                 "(0x{:X}) {} kB - {:?}",
                 node.this.as_ptr() as usize,
@@ -156,19 +161,24 @@ impl KernelFrameAllocator {
             .expect("at least one page should be available");
 
         let sp = sp.as_mut_ptr::<SyncPage>();
-        sp.write_volatile(SyncPage {});
+        sp.write_volatile(SyncPage {
+            ll_lock: RawSpinlock::INIT,
+        });
         sp as *const SyncPage
     }
 
     unsafe fn alloc_linear_no_map(&mut self, cnt: usize) -> Option<(VirtAddr, usize)> {
-        let mut node = NodeTraverser::new(self.start.as_ref().0)
+        let mut node = NodeTraverser::new(self.start?.as_ref().0)
             .filter(|n| n.count >= cnt)
             .next()?;
 
+        // node is the size we need, we dont make a new one
         if node.count == cnt {
-            node.prev
-                .as_mut()
-                .map(|prev| prev.as_mut().0.next = node.next);
+            if let Some(prev) = &mut node.prev {
+                prev.as_mut().0.next = node.next;
+            } else {
+                self.start = node.next;
+            }
             node.next
                 .as_mut()
                 .map(|next| next.as_mut().0.prev = node.prev);
@@ -189,7 +199,7 @@ impl KernelFrameAllocator {
         if let Some(prev) = &mut node.prev {
             prev.as_mut().0.next = Some(new);
         } else {
-            self.start = new;
+            self.start = node.next;
         }
         node.next
             .as_mut()
@@ -241,7 +251,7 @@ where
 }
 
 impl<'a> Iterator for PageReservingIter<'a> {
-    type Item = ();
+    type Item = Range<VirtAddr>;
 
     fn next(&mut self) -> Option<Self::Item> {
         todo!()

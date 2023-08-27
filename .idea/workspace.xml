@@ -15,15 +15,9 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="idk">
+    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="improved the allocator system">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/fb/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/fb/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/list.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/lla.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/primitive.rs" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -158,7 +152,7 @@
       <workItem from="1692909426403" duration="5048000" />
       <workItem from="1692963108594" duration="57000" />
       <workItem from="1692963175727" duration="15236000" />
-      <workItem from="1693097096061" duration="11977000" />
+      <workItem from="1693097096061" duration="13451000" />
     </task>
     <task id="LOCAL-00001" summary="I have to implement interrupts">
       <option name="closed" value="true" />
@@ -192,7 +186,15 @@
       <option name="project" value="LOCAL" />
       <updated>1693024584259</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="improved the allocator system">
+      <option name="closed" value="true" />
+      <created>1693109365865</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1693109365865</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -214,7 +216,8 @@
     <MESSAGE value="stack trace: the big giving up for now" />
     <MESSAGE value="interrupts and stuff" />
     <MESSAGE value="idk" />
-    <option name="LAST_COMMIT_MESSAGE" value="idk" />
+    <MESSAGE value="improved the allocator system" />
+    <option name="LAST_COMMIT_MESSAGE" value="improved the allocator system" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
