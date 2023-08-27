@@ -1,25 +1,38 @@
-mod list;
-mod primitive;
+mod lla;
 
-use crate::mem::kfalloc::list::{PageNode};
+use crate::mem::kfalloc::lla::{AlignedNodePage, NodeTraverser, PageNode};
 use bootloader_api::info::{MemoryRegion, MemoryRegionKind, MemoryRegions};
 
-use core::ptr::{null_mut};
+use core::ptr::NonNull;
 use log::{info, trace, warn};
 
-use x86_64::structures::paging::{FrameAllocator, PageSize, PhysFrame};
+use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame};
 use x86_64::VirtAddr;
 
 pub struct KernelFrameAllocator {
     phys_offset: VirtAddr,
     map: &'static MemoryRegions,
+    sync: NonNull<SyncPage>,
 
-    start: *mut PageNode,
+    start: NonNull<AlignedNodePage>,
 }
+
+struct PageReservingIter<'a> {
+    kfa: &'a mut KernelFrameAllocator,
+    left: usize,
+}
+
+#[repr(align(4096))]
+struct SyncPage {}
 
 struct RegionCombiningIter<I> {
     inner: I,
     current: Option<MemoryRegion>,
+}
+
+struct PageCommitment {
+    start: *const Page,
+    count: usize,
 }
 
 impl KernelFrameAllocator {
@@ -32,7 +45,8 @@ impl KernelFrameAllocator {
         Self {
             phys_offset,
             map,
-            start: null_mut(),
+            sync: NonNull::dangling(),
+            start: NonNull::dangling(),
         }
     }
 
@@ -51,51 +65,44 @@ impl KernelFrameAllocator {
             current: None,
         };
 
-        let mut start = null_mut::<PageNode>();
-        let mut last = null_mut::<PageNode>();
+        let mut start: Option<NonNull<AlignedNodePage>> = None;
+        let mut last: Option<NonNull<AlignedNodePage>> = None;
 
         for mr in combiner {
             // SAFETY: the provided memory region are assumed to be unused and correct
-            let node = unsafe { self.init_region(&mr) };
-            if node.is_null() {
-                panic!("Invalid memory region passed to initializer");
+            let mut node = unsafe { self.init_region(&mr) }
+                .expect("Invalid memory region passed to initializer");
+
+            if start.is_none() {
+                start = Some(node);
             }
 
-            if start.is_null() {
-                start = node;
-            }
-
-            if !last.is_null() {
+            if let Some(last_n) = &mut last {
                 // SAFETY: We performed a null check, therefor the pointer is be valid
                 //         and has been written too before by `init_region`.
                 unsafe {
-                    (*last).next = node;
+                    last_n.as_mut().0.next = Some(node);
+                    node.as_mut().0.prev = last;
                 }
             }
 
-            last = node;
+            last = Some(node);
         }
 
         // Finalize the current memory region
-        self.start = start;
+        self.start = start.expect("no suitable memory regions found");
 
-        let mut node = self.start.read();
-        info!(
-            "(0x{:X}) {} kB - 0x{:X}",
-            node.this as usize,
-            node.count * 4096 / 1024,
-            node.next as usize,
-        );
-        while let Some(next) = node.next() {
-            node = next;
+        // FIXME: start does not get updated properly??
+        self.sync = NonNull::new(self.init_sync_page() as *mut _).unwrap();
+
+        for node in NodeTraverser::new(self.start.as_ref().0) {
             info!(
-                "(0x{:X}) {} kB",
-                node.this as usize,
-                node.count * 4096 / 1024
+                "(0x{:X}) {} kB - {:?}",
+                node.this.as_ptr() as usize,
+                node.count * 4096 / 1024,
+                node
             );
         }
-
-        info!("end");
     }
 
     /// Trims and initializes a memory region and returns a pointer to the respective node.
@@ -104,7 +111,7 @@ impl KernelFrameAllocator {
     ///
     /// # Safety:
     /// The given memory region must be fully available for usage
-    unsafe fn init_region(&mut self, reg: &MemoryRegion) -> *mut PageNode {
+    unsafe fn init_region(&mut self, reg: &MemoryRegion) -> Option<NonNull<AlignedNodePage>> {
         assert_eq!(reg.kind, MemoryRegionKind::Usable);
 
         const PAGE_MASK: u64 = !(4096 - 1);
@@ -122,22 +129,80 @@ impl KernelFrameAllocator {
         let pages = (aligned_end - aligned_start) / 4096;
         if pages == 0 {
             warn!("Useless memory region ignored");
-            return null_mut();
+            return None;
         }
 
-        let node_ptr = (self.phys_offset + aligned_start).as_mut_ptr::<PageNode>();
+        let mut node_ptr =
+            NonNull::new((self.phys_offset + aligned_start).as_mut_ptr::<AlignedNodePage>())
+                .unwrap();
         let node = PageNode {
             this: node_ptr,
-            next: null_mut(),
+            next: None,
+            prev: None,
             count: pages as usize,
         };
 
         // SAFETY: we assume that the given memory region is empty and available
         unsafe {
-            node_ptr.write_volatile(node);
+            node_ptr.as_ptr().write_volatile(AlignedNodePage(node));
         }
 
-        node_ptr
+        Some(node_ptr)
+    }
+
+    unsafe fn init_sync_page(&mut self) -> *const SyncPage {
+        let (sp, _) = self
+            .alloc_linear_no_map(1)
+            .expect("at least one page should be available");
+
+        let sp = sp.as_mut_ptr::<SyncPage>();
+        sp.write_volatile(SyncPage {});
+        sp as *const SyncPage
+    }
+
+    unsafe fn alloc_linear_no_map(&mut self, cnt: usize) -> Option<(VirtAddr, usize)> {
+        let mut node = NodeTraverser::new(self.start.as_ref().0)
+            .filter(|n| n.count >= cnt)
+            .next()?;
+
+        if node.count == cnt {
+            node.prev
+                .as_mut()
+                .map(|prev| prev.as_mut().0.next = node.next);
+            node.next
+                .as_mut()
+                .map(|next| next.as_mut().0.prev = node.prev);
+
+            return Some((VirtAddr::new(node.this.as_ptr() as u64), cnt));
+        }
+
+        let left = node.count - cnt;
+        let new = NonNull::new(node.this.as_ptr().add(left)).unwrap();
+        // ik we are using this again, but im not sure if llvm can change the location of where we are writing to
+        new.as_ptr().write_volatile(AlignedNodePage(PageNode {
+            this: new,
+            next: node.next,
+            prev: node.prev,
+            count: left,
+        }));
+
+        if let Some(prev) = &mut node.prev {
+            prev.as_mut().0.next = Some(new);
+        } else {
+            self.start = new;
+        }
+        node.next
+            .as_mut()
+            .map(|next| next.as_mut().0.prev = Some(new));
+
+        Some((VirtAddr::new(node.this.as_ptr() as u64), cnt))
+    }
+
+    unsafe fn reserve_pages(&mut self, cnt: usize) -> PageReservingIter {
+        PageReservingIter {
+            kfa: self,
+            left: cnt,
+        }
     }
 }
 
@@ -172,6 +237,20 @@ where
             current.end = next.end;
             self.current = Some(current);
         }
+    }
+}
+
+impl<'a> Iterator for PageReservingIter<'a> {
+    type Item = ();
+
+    fn next(&mut self) -> Option<Self::Item> {
+        todo!()
+    }
+}
+
+impl<'a> Drop for PageReservingIter<'a> {
+    fn drop(&mut self) {
+        todo!()
     }
 }
 

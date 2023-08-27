@@ -27,6 +27,13 @@ struct InnerFrameBuffer {
     pos_y: usize,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Float {
+    Left,
+    Center,
+    Right,
+}
+
 impl SharedFrameBuffer {
     pub fn new(fb: &'static mut FrameBuffer) -> Self {
         if fb.info().width != fb.info().stride {
@@ -81,19 +88,29 @@ impl SharedFrameBuffer {
         }
     }
 
-    fn draw_rgb_block(&self, img: &[u8], width: usize, height: usize, stride: usize, center: bool) {
+    pub(crate) fn draw_rgb_block(
+        &self,
+        img: &[u8],
+        width: usize,
+        height: usize,
+        stride: usize,
+        flt: Float,
+        inc_y: bool,
+    ) {
         assert!(stride >= 3);
         assert_eq!(img.len(), width * height * stride);
 
         let mut this = self.0.lock();
         let info = this.fb.info();
 
-        if center {
-            if this.pos_x != 0 {
-                this.new_line();
+        match flt {
+            Float::Left => (),
+            Float::Center => {
+                this.pos_x = info.width / 2 - width / 2;
             }
-
-            this.pos_x = info.width / 2 - width / 2;
+            Float::Right => {
+                this.pos_x = info.width - width;
+            }
         }
 
         if this.pos_y + height > info.height {
@@ -111,6 +128,10 @@ impl SharedFrameBuffer {
                 let ip = (y * width + x) * stride;
                 let ax = ((this.pos_y + y) * info.stride + this.pos_x + x) * info.bytes_per_pixel;
 
+                if stride == 4 && img[ip + 3] == 0 {
+                    continue;
+                }
+
                 mapper.write(
                     &mut this.fb.buffer_mut()[ax..],
                     &[img[ip], img[ip + 1], img[ip + 2]],
@@ -118,16 +139,10 @@ impl SharedFrameBuffer {
             }
         }
 
-        this.pos_y += height.div_ceil(VERTICAL_STRIDE) * VERTICAL_STRIDE;
+        if inc_y {
+            this.pos_y += height.div_ceil(VERTICAL_STRIDE) * VERTICAL_STRIDE;
+        }
         this.new_line();
-    }
-
-    pub fn draw_rgb3_block(&self, img: &[u8], width: usize, height: usize, center: bool) {
-        self.draw_rgb_block(img, width, height, 3, center);
-    }
-
-    pub fn draw_rgb4_block(&self, img: &[u8], width: usize, height: usize, center: bool) {
-        self.draw_rgb_block(img, width, height, 4, center);
     }
 }
 

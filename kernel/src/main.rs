@@ -15,7 +15,7 @@ mod rng;
 mod serial;
 mod stacktrace;
 
-use crate::fb::SharedFrameBuffer;
+use crate::fb::{Float, SharedFrameBuffer};
 use crate::interrupts::init_idt;
 use crate::logging::KernelLogger;
 use crate::mem::MemoryManager;
@@ -57,6 +57,7 @@ static FRAME_BUFFER: OnceCell<SharedFrameBuffer> = OnceCell::uninit();
 static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
     config.mappings.physical_memory = Some(Mapping::Dynamic);
+    config.kernel_stack_size = 512 * 1024;
     config
 };
 
@@ -97,11 +98,22 @@ fn kernel_main(
 
     init_idt();
 
+    FRAME_BUFFER.try_get().unwrap().draw_rgb_block(
+        include_bytes!("res/3caulk.data"),
+        64,
+        64,
+        4,
+        Float::Right,
+        false,
+    );
     println!();
-    FRAME_BUFFER.try_get().unwrap().draw_rgb3_block(
-        include_bytes!("res/logo.data"),
-        128,
-        128,
+    FRAME_BUFFER.try_get().unwrap().draw_rgb_block(
+        include_bytes!("res/logo2.data"),
+        // include_bytes!("res/logo.data"), // stride=3
+        256,
+        164,
+        4,
+        Float::Center,
         true,
     );
 
