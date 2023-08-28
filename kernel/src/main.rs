@@ -98,14 +98,6 @@ fn kernel_main(
 
     init_idt();
 
-    FRAME_BUFFER.try_get().unwrap().draw_rgb_block(
-        include_bytes!("res/3caulk.data"),
-        64,
-        64,
-        4,
-        Float::Right,
-        false,
-    );
     println!();
     FRAME_BUFFER.try_get().unwrap().draw_rgb_block(
         include_bytes!("res/logo2.data"),
