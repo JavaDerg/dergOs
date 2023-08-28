@@ -15,13 +15,13 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="fixed silly bug">
+    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="finished page allocator">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/lla.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/lla.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/mem/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/src/res/3caulk.data" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/src/stacktrace.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/stacktrace.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -153,7 +153,9 @@
       <workItem from="1692963175727" duration="15236000" />
       <workItem from="1693097096061" duration="17022000" />
       <workItem from="1693150221211" duration="892000" />
-      <workItem from="1693169147873" duration="9445000" />
+      <workItem from="1693169147873" duration="12069000" />
+      <workItem from="1693186581091" duration="7000" />
+      <workItem from="1693186600637" duration="1427000" />
     </task>
     <task id="LOCAL-00001" summary="I have to implement interrupts">
       <option name="closed" value="true" />
@@ -203,7 +205,15 @@
       <option name="project" value="LOCAL" />
       <updated>1693145998750</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="finished page allocator">
+      <option name="closed" value="true" />
+      <created>1693180931787</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1693180931787</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -227,7 +237,8 @@
     <MESSAGE value="idk" />
     <MESSAGE value="improved the allocator system" />
     <MESSAGE value="fixed silly bug" />
-    <option name="LAST_COMMIT_MESSAGE" value="fixed silly bug" />
+    <MESSAGE value="finished page allocator" />
+    <option name="LAST_COMMIT_MESSAGE" value="finished page allocator" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

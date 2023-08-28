@@ -1,5 +1,4 @@
-
-use crate::{STACK_END};
+use crate::STACK_END;
 use core::arch::asm;
 
 use core::ptr::null;
@@ -12,21 +11,23 @@ pub unsafe fn dump_stack() {
     // error!("lmao did you actually think I would implement this rn? (i tried ;W;)");
 
     let mut rbp: *const u64;
-    asm!("mov {}, rbp", out(reg) rbp);
+    unsafe {
+        asm!("mov {}, rbp", out(reg) rbp);
+    }
 
     loop {
         if rbp == null() {
             info!("rbp is null");
             break;
-        } else if rbp as u64 >= STACK_END {
+        } else if rbp as u64 >= unsafe { STACK_END } {
             info!("found end or over stepped");
             break;
         }
 
-        let rip = rbp.add(1).read();
+        let rip = unsafe { rbp.add(1).read() };
         trace!("    rbp={:?}; rip={:?}", rbp, rip as *const u64);
 
-        rbp = *rbp as *const u64;
+        rbp = unsafe { *rbp as *const u64 };
     }
 
     // info!(".debug_info={:?}", get_debug_info());

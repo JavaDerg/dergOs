@@ -16,7 +16,7 @@ pub struct MemoryManager {
 struct InnerMemoryManager {
     regions: &'static MemoryRegions,
     mapper: OffsetPageTable<'static>,
-    kernel_space: u16,
+    allocator: &'static KernelFrameAllocator,
 }
 
 impl MemoryManager {
@@ -41,13 +41,27 @@ impl MemoryManager {
         // SAFETY: First time we are touching these regions, therefore we can initialize them
         let mut allocator = unsafe { KernelFrameAllocator::init(phys_offset, regions) };
 
-        let _inner = InnerMemoryManager {
+        let inner = InnerMemoryManager {
             regions,
             mapper,
-            kernel_space: ke_idx as u16,
+            allocator,
         };
 
-        todo!()
+        let mmf = (phys_offset.as_u64()
+            + allocator
+                .allocate_frame()
+                .expect("we should really have a second one")
+                .start_address()
+                .as_u64()) as *mut MemoryManager;
+
+        unsafe {
+            mmf.write_volatile(MemoryManager {
+                inner: Spinlock::new(inner),
+                phys_offset,
+            })
+        };
+
+        unsafe { mmf.as_ref() }.unwrap()
     }
 
     pub fn translate<T>(&self, addr: PhysAddr) -> *const T {

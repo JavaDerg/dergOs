@@ -1,6 +1,8 @@
 #![feature(abi_x86_interrupt)]
 #![no_std]
 #![no_main]
+#![deny(unsafe_op_in_unsafe_fn)]
+// #![deny(clippy::multiple_unsafe_ops_per_block)]
 
 extern crate alloc;
 
@@ -81,7 +83,7 @@ fn entry(_info: &'static mut BootInfo) -> ! {
     }
 }
 
-fn kernel_main(
+extern "C" fn kernel_main(
     BootInfo {
         framebuffer,
         memory_regions,

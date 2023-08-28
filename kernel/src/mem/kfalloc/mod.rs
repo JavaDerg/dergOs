@@ -5,13 +5,13 @@ use bootloader_api::info::{MemoryRegion, MemoryRegionKind, MemoryRegions};
 use core::mem::{forget, ManuallyDrop};
 use core::ops::Range;
 
-use core::ptr::NonNull;
+use core::ptr::{write_volatile, NonNull};
 use log::{trace, warn};
 use spinning_top::lock_api::MutexGuard;
 use spinning_top::{RawSpinlock, Spinlock};
 
-use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame};
-use x86_64::VirtAddr;
+use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame, Size4KiB};
+use x86_64::{PhysAddr, VirtAddr};
 
 static_assertions::const_assert!(core::mem::size_of::<KernelFrameAllocator>() <= 4096);
 
@@ -96,7 +96,7 @@ impl KernelFrameAllocator {
         // Finalize the current memory region
         this.inner.lock().start = Some(start.expect("no suitable memory regions found"));
 
-        this.write_self().as_ref().unwrap()
+        unsafe { this.write_self().as_ref().unwrap() }
     }
 
     /// Trims and initializes a memory region and returns a pointer to the respective node.
@@ -145,12 +145,15 @@ impl KernelFrameAllocator {
     }
 
     unsafe fn write_self(mut self) -> *const Self {
-        let (sp, _) = self
-            .dirty_alloc_linear_no_map(1)
-            .expect("at least one page should be available");
+        let (sp, _) = unsafe {
+            self.dirty_alloc_linear_no_map(1)
+                .expect("at least one page should be available")
+        };
 
         let sp = sp.as_mut_ptr::<Self>();
-        sp.write_volatile(self);
+        unsafe {
+            sp.write_volatile(self);
+        }
         sp as *const Self
     }
 
@@ -158,42 +161,48 @@ impl KernelFrameAllocator {
     unsafe fn dirty_alloc_linear_no_map(&mut self, cnt: usize) -> Option<(VirtAddr, usize)> {
         let mut inner = self.inner.lock();
 
-        let mut node = NodeTraverser::new(inner.start?.as_ref().0)
+        let mut node = unsafe { NodeTraverser::new(inner.start?.as_ref().0) }
             .filter(|n| n.count >= cnt)
             .next()?;
 
         // node is the size we need, we dont make a new one
         if node.count == cnt {
             if let Some(prev) = &mut node.prev {
-                prev.as_mut().0.next = node.next;
+                unsafe {
+                    prev.as_mut().0.next = node.next;
+                }
             } else {
                 inner.start = node.next;
             }
             node.next
                 .as_mut()
-                .map(|next| next.as_mut().0.prev = node.prev);
+                .map(|next| unsafe { next.as_mut().0.prev = node.prev });
 
             return Some((VirtAddr::new(node.this.as_ptr() as u64), cnt));
         }
 
         let left = node.count - cnt;
-        let new = NonNull::new(node.this.as_ptr().add(left)).unwrap();
+        let new = unsafe { NonNull::new(node.this.as_ptr().add(left)).unwrap() };
         // ik we are using this again, but im not sure if llvm can change the location of where we are writing to
-        new.as_ptr().write_volatile(AlignedNodePage(PageNode {
-            this: new,
-            next: node.next,
-            prev: node.prev,
-            count: left,
-        }));
+        unsafe {
+            new.as_ptr().write_volatile(AlignedNodePage(PageNode {
+                this: new,
+                next: node.next,
+                prev: node.prev,
+                count: left,
+            }));
+        }
 
         if let Some(prev) = &mut node.prev {
-            prev.as_mut().0.next = Some(new);
+            unsafe {
+                prev.as_mut().0.next = Some(new);
+            }
         } else {
             inner.start = node.next;
         }
         node.next
             .as_mut()
-            .map(|next| next.as_mut().0.prev = Some(new));
+            .map(|next| unsafe { next.as_mut().0.prev = Some(new) });
 
         Some((VirtAddr::new(node.this.as_ptr() as u64), cnt))
     }
@@ -248,7 +257,7 @@ impl Iterator for PageReservingIter {
             return None;
         }
 
-        let inner = self.kfa.inner.lock();
+        let mut inner = self.kfa.inner.lock();
         // SAFETY: when the page is present it's readable
         let mut node = unsafe { inner.start?.as_ref() }.0;
 
@@ -269,7 +278,7 @@ impl Iterator for PageReservingIter {
             });
 
             PageRangeLease {
-                start: VirtAddr::new(node.this.as_ptr() as u64).unwrap(),
+                start: VirtAddr::new(node.this.as_ptr() as u64),
                 count: node.count,
                 kfa: self.kfa,
             }
@@ -277,12 +286,12 @@ impl Iterator for PageReservingIter {
             node.count -= self.left;
             self.left = 0;
 
-            let origin = VirtAddr::new(node.this.as_ptr() as u64).unwrap();
+            let origin = VirtAddr::new(node.this.as_ptr() as u64);
             // SAFETY: We know we can bump up the pointer as its within the nodes range
             node.this = NonNull::new(unsafe { node.this.as_ptr().add(self.left) }).unwrap();
 
             if node.prev.is_none() {
-                inner.start = origin;
+                inner.start = NonNull::new(origin.as_mut_ptr());
             }
 
             // SAFETY: we assume the ll is valid
@@ -319,7 +328,7 @@ impl PageRangeLease {
 
 impl Drop for PageRangeLease {
     fn drop(&mut self) {
-        let inner = self.kfa.inner.lock();
+        let mut inner = self.kfa.inner.lock();
 
         let page = PageNode {
             this: NonNull::new(self.start.as_mut_ptr()).unwrap(),
@@ -339,8 +348,13 @@ impl Drop for PageRangeLease {
     }
 }
 
-unsafe impl<S: PageSize> FrameAllocator<S> for KernelFrameAllocator {
-    fn allocate_frame(&mut self) -> Option<PhysFrame<S>> {
-        todo!()
+unsafe impl FrameAllocator<Size4KiB> for KernelFrameAllocator {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        // SAFETY: We pray
+        let (frame, _) = unsafe { self.dirty_alloc_linear_no_map(1) }?;
+
+        Some(PhysFrame::containing_address(PhysAddr::new(
+            frame.as_u64() - self.phys_offset.as_u64(),
+        )))
     }
 }
