@@ -1,7 +1,5 @@
-use bootloader_api::info::Optional;
 use core::mem::size_of;
 use core::ptr::NonNull;
-use log::trace;
 
 #[repr(align(4096))]
 #[repr(C)]

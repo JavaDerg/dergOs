@@ -39,8 +39,7 @@ impl MemoryManager {
         let mapper = unsafe { OffsetPageTable::new(level4, phys_offset) };
 
         // SAFETY: First time we are touching these regions, therefore we can initialize them
-        let mut allocator = unsafe { KernelFrameAllocator::new(phys_offset, regions) };
-        unsafe { allocator.init() };
+        let mut allocator = unsafe { KernelFrameAllocator::init(phys_offset, regions) };
 
         let _inner = InnerMemoryManager {
             regions,

@@ -2,32 +2,34 @@ mod lla;
 
 use crate::mem::kfalloc::lla::{AlignedNodePage, NodeTraverser, PageNode};
 use bootloader_api::info::{MemoryRegion, MemoryRegionKind, MemoryRegions};
+use core::mem::{forget, ManuallyDrop};
 use core::ops::Range;
 
 use core::ptr::NonNull;
-use log::{info, trace, warn};
-use spinning_top::lock_api::RawMutex;
-use spinning_top::RawSpinlock;
+use log::{trace, warn};
+use spinning_top::lock_api::MutexGuard;
+use spinning_top::{RawSpinlock, Spinlock};
 
 use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame};
 use x86_64::VirtAddr;
 
+static_assertions::const_assert!(core::mem::size_of::<KernelFrameAllocator>() <= 4096);
+
+#[repr(align(4096))]
 pub struct KernelFrameAllocator {
     phys_offset: VirtAddr,
-    map: &'static MemoryRegions,
-    sync: NonNull<SyncPage>,
 
+    inner: Spinlock<InnerAllocator>,
+}
+
+struct InnerAllocator {
     start: Option<NonNull<AlignedNodePage>>,
 }
 
-struct PageReservingIter<'a> {
-    kfa: &'a mut KernelFrameAllocator,
-    left: usize,
-}
+struct PageReservingIter {
+    kfa: &'static KernelFrameAllocator,
 
-#[repr(align(4096))]
-struct SyncPage {
-    ll_lock: RawSpinlock,
+    left: usize,
 }
 
 struct RegionCombiningIter<I> {
@@ -35,9 +37,12 @@ struct RegionCombiningIter<I> {
     current: Option<MemoryRegion>,
 }
 
-struct PageCommitment {
-    start: *const Page,
+#[must_use]
+struct PageRangeLease {
+    start: VirtAddr,
     count: usize,
+
+    kfa: &'static KernelFrameAllocator,
 }
 
 impl KernelFrameAllocator {
@@ -45,22 +50,16 @@ impl KernelFrameAllocator {
     /// They may only be initialized **once**.
     ///
     /// # SAFETY:
-    /// Must be initialized before usage
-    pub unsafe fn new(phys_offset: VirtAddr, map: &'static MemoryRegions) -> Self {
-        Self {
-            phys_offset,
-            map,
-            sync: NonNull::dangling(),
-            start: None,
-        }
-    }
-
-    /// # SAFETY:
     /// - This may only be called ONCE
     /// - The provided memory regions must be unused and correct
-    pub unsafe fn init(&mut self) {
-        let usable = self
-            .map
+    /// - Run before enabling hardware interrupts
+    pub unsafe fn init(phys_offset: VirtAddr, map: &'static MemoryRegions) -> &'static Self {
+        let mut this = Self {
+            phys_offset,
+            inner: Spinlock::new(InnerAllocator { start: None }),
+        };
+
+        let usable = map
             .iter()
             .filter(|mr| mr.kind == MemoryRegionKind::Usable)
             .cloned();
@@ -75,7 +74,7 @@ impl KernelFrameAllocator {
 
         for mr in combiner {
             // SAFETY: the provided memory region are assumed to be unused and correct
-            let mut node = unsafe { self.init_region(&mr) }
+            let mut node = unsafe { this.init_region(&mr) }
                 .expect("Invalid memory region passed to initializer");
 
             if start.is_none() {
@@ -95,19 +94,9 @@ impl KernelFrameAllocator {
         }
 
         // Finalize the current memory region
-        self.start = Some(start.expect("no suitable memory regions found"));
+        this.inner.lock().start = Some(start.expect("no suitable memory regions found"));
 
-        // FIXME: start does not get updated properly??
-        self.sync = NonNull::new(self.init_sync_page() as *mut _).unwrap();
-
-        for node in NodeTraverser::new(self.start.unwrap().as_ref().0) {
-            info!(
-                "(0x{:X}) {} kB - {:?}",
-                node.this.as_ptr() as usize,
-                node.count * 4096 / 1024,
-                node
-            );
-        }
+        this.write_self().as_ref().unwrap()
     }
 
     /// Trims and initializes a memory region and returns a pointer to the respective node.
@@ -155,20 +144,21 @@ impl KernelFrameAllocator {
         Some(node_ptr)
     }
 
-    unsafe fn init_sync_page(&mut self) -> *const SyncPage {
+    unsafe fn write_self(mut self) -> *const Self {
         let (sp, _) = self
-            .alloc_linear_no_map(1)
+            .dirty_alloc_linear_no_map(1)
             .expect("at least one page should be available");
 
-        let sp = sp.as_mut_ptr::<SyncPage>();
-        sp.write_volatile(SyncPage {
-            ll_lock: RawSpinlock::INIT,
-        });
-        sp as *const SyncPage
+        let sp = sp.as_mut_ptr::<Self>();
+        sp.write_volatile(self);
+        sp as *const Self
     }
 
-    unsafe fn alloc_linear_no_map(&mut self, cnt: usize) -> Option<(VirtAddr, usize)> {
-        let mut node = NodeTraverser::new(self.start?.as_ref().0)
+    // Should only used for bootstrapping
+    unsafe fn dirty_alloc_linear_no_map(&mut self, cnt: usize) -> Option<(VirtAddr, usize)> {
+        let mut inner = self.inner.lock();
+
+        let mut node = NodeTraverser::new(inner.start?.as_ref().0)
             .filter(|n| n.count >= cnt)
             .next()?;
 
@@ -177,7 +167,7 @@ impl KernelFrameAllocator {
             if let Some(prev) = &mut node.prev {
                 prev.as_mut().0.next = node.next;
             } else {
-                self.start = node.next;
+                inner.start = node.next;
             }
             node.next
                 .as_mut()
@@ -199,7 +189,7 @@ impl KernelFrameAllocator {
         if let Some(prev) = &mut node.prev {
             prev.as_mut().0.next = Some(new);
         } else {
-            self.start = node.next;
+            inner.start = node.next;
         }
         node.next
             .as_mut()
@@ -208,7 +198,7 @@ impl KernelFrameAllocator {
         Some((VirtAddr::new(node.this.as_ptr() as u64), cnt))
     }
 
-    unsafe fn reserve_pages(&mut self, cnt: usize) -> PageReservingIter {
+    unsafe fn reserve_pages(&'static self, cnt: usize) -> PageReservingIter {
         PageReservingIter {
             kfa: self,
             left: cnt,
@@ -250,17 +240,102 @@ where
     }
 }
 
-impl<'a> Iterator for PageReservingIter<'a> {
-    type Item = Range<VirtAddr>;
+impl Iterator for PageReservingIter {
+    type Item = PageRangeLease;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        if self.left == 0 {
+            return None;
+        }
+
+        let inner = self.kfa.inner.lock();
+        // SAFETY: when the page is present it's readable
+        let mut node = unsafe { inner.start?.as_ref() }.0;
+
+        // if the node is >= of the node size we remove the node and take it
+        Some(if self.left >= node.count {
+            self.left -= node.count;
+
+            if node.prev.is_none() {
+                inner.start = node.next;
+            }
+
+            // SAFETY: we assume the ll is valid
+            let _ = node.prev.as_mut().map(|prev| unsafe {
+                prev.as_mut().0.next = node.next;
+            });
+            let _ = node.next.as_mut().map(|next| unsafe {
+                next.as_mut().0.prev = node.prev;
+            });
+
+            PageRangeLease {
+                start: VirtAddr::new(node.this.as_ptr() as u64).unwrap(),
+                count: node.count,
+                kfa: self.kfa,
+            }
+        } else {
+            node.count -= self.left;
+            self.left = 0;
+
+            let origin = VirtAddr::new(node.this.as_ptr() as u64).unwrap();
+            // SAFETY: We know we can bump up the pointer as its within the nodes range
+            node.this = NonNull::new(unsafe { node.this.as_ptr().add(self.left) }).unwrap();
+
+            if node.prev.is_none() {
+                inner.start = origin;
+            }
+
+            // SAFETY: we assume the ll is valid
+            let _ = node.prev.as_mut().map(|prev| unsafe {
+                prev.as_mut().0.next = Some(node.this);
+            });
+            let _ = node.next.as_mut().map(|next| unsafe {
+                next.as_mut().0.prev = Some(node.this);
+            });
+
+            // SAFETY:
+            unsafe {
+                node.this.as_ptr().write_volatile(AlignedNodePage(node));
+            }
+
+            PageRangeLease {
+                start: origin,
+                count: self.left,
+                kfa: self.kfa,
+            }
+        })
     }
 }
 
-impl<'a> Drop for PageReservingIter<'a> {
+impl PageRangeLease {
+    pub fn release(self) {
+        let _ = self;
+    }
+
+    pub fn keep(self) {
+        forget(self);
+    }
+}
+
+impl Drop for PageRangeLease {
     fn drop(&mut self) {
-        todo!()
+        let inner = self.kfa.inner.lock();
+
+        let page = PageNode {
+            this: NonNull::new(self.start.as_mut_ptr()).unwrap(),
+            next: inner.start,
+            prev: None, // this is none on purpose as this will become the first page
+            count: self.count,
+        };
+
+        if let Some(mut old) = inner.start {
+            unsafe { old.as_mut().0.prev = Some(page.this) };
+        }
+
+        unsafe {
+            page.this.as_ptr().write_volatile(AlignedNodePage(page));
+        }
+        inner.start = Some(page.this);
     }
 }
 

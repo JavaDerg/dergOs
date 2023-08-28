@@ -15,9 +15,13 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="improved the allocator system">
+    <list default="true" id="b8c2526c-7e13-4501-b859-b0aa3e44ddae" name="Changes" comment="fixed silly bug">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/lla.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/lla.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/kfalloc/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/kernel/src/mem/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/kernel/src/mem/mod.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -55,26 +59,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "WebServerToolWindowFactoryState": "false",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "/home/amnesia/source/rust/dergos",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "settings.editor.selected.configurable": "CLionExternalConfigurable",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/amnesia/source/rust/dergos&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;CLionExternalConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/kernel/src/mem/kfalloc" />
@@ -87,11 +91,6 @@
     <option name="tool" value="Clippy" />
   </component>
   <component name="RunManager" selected="Cargo.Run">
-    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true">
-      <method v="2">
-        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
-      </method>
-    </configuration>
     <configuration name="Run" type="CargoCommandRunConfiguration" factoryName="Cargo Command" nameIsGenerated="true">
       <option name="command" value="run" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
@@ -152,7 +151,9 @@
       <workItem from="1692909426403" duration="5048000" />
       <workItem from="1692963108594" duration="57000" />
       <workItem from="1692963175727" duration="15236000" />
-      <workItem from="1693097096061" duration="13451000" />
+      <workItem from="1693097096061" duration="17022000" />
+      <workItem from="1693150221211" duration="892000" />
+      <workItem from="1693169147873" duration="9445000" />
     </task>
     <task id="LOCAL-00001" summary="I have to implement interrupts">
       <option name="closed" value="true" />
@@ -194,7 +195,15 @@
       <option name="project" value="LOCAL" />
       <updated>1693109365865</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="fixed silly bug">
+      <option name="closed" value="true" />
+      <created>1693145998750</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1693145998750</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -217,7 +226,8 @@
     <MESSAGE value="interrupts and stuff" />
     <MESSAGE value="idk" />
     <MESSAGE value="improved the allocator system" />
-    <option name="LAST_COMMIT_MESSAGE" value="improved the allocator system" />
+    <MESSAGE value="fixed silly bug" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixed silly bug" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
