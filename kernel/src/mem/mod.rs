@@ -28,13 +28,6 @@ impl MemoryManager {
         // SAFETY: the caller of current function has to guarantee phys_offset is correct
         let level4 = unsafe { &mut *((phys_offset.as_u64() + cr3) as *mut PageTable) };
 
-        let ke_idx = level4
-            .iter_mut()
-            .enumerate()
-            .find(|(_, e)| e.is_unused())
-            .map(|(ke_idx, _)| ke_idx)
-            .expect("the level 4 page table can not be filled at this point");
-
         // SAFETY: the caller of current function has to guarantee phys_offset is correct
         let mapper = unsafe { OffsetPageTable::new(level4, phys_offset) };
 

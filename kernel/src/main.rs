@@ -13,6 +13,7 @@ mod kio;
 mod kpanic;
 mod logging;
 mod mem;
+mod mem2;
 mod rng;
 mod serial;
 mod stacktrace;
